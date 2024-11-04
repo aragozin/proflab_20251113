@@ -74,7 +74,7 @@
                         </paths>
                     </extraDirectories>
                     <from>
-                        <image>eclipse-temurin:17</image>
+                        <image>eclipse-temurin:25</image>
                     </from>
                 </configuration>
             </plugin>
