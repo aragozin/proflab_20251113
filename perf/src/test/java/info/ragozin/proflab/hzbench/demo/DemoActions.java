@@ -1,5 +1,6 @@
 package info.ragozin.proflab.hzbench.demo;
 
+import info.ragozin.demostarter.ContainerHelper;
 import info.ragozin.labconsole.agent.DemoInitializer;
 import info.ragozin.perflab.hazelagg.DataGenerator;
 
@@ -35,20 +36,25 @@ public class DemoActions {
 
     }
 
-    private static void generateData() {
-        DataGenerator gen = new DataGenerator();
-        gen.setBookLimit(DemoInitializer.propAsInt("hzdemo.data.bookCount", 100));
-        gen.setUnderlayingLimit(DemoInitializer.propAsInt("hzdemo.data.underlayingLimit", 100));
-        gen.setContractLimit(DemoInitializer.propAsInt("hzdemo.data.contractLimit", 10));
+    public static void generateData() {
+        long size = HzService.client().size();
+        if (size == 0) {
+            System.out.println("Genrating test data ...");
 
-        int volume = DemoInitializer.propAsInt("hzdemo.data.volume", 10000);
+            DataGenerator gen = new DataGenerator();
+            gen.setBookLimit(DemoInitializer.propAsInt("hzdemo.data.bookCount", 100));
+            gen.setUnderlayingLimit(DemoInitializer.propAsInt("hzdemo.data.underlayingLimit", 100));
+            gen.setContractLimit(DemoInitializer.propAsInt("hzdemo.data.contractLimit", 10));
 
-        gen.generate(HzService.client(), volume);
+            int volume = DemoInitializer.propAsInt("hzdemo.data.volume", 10000);
 
-        System.out.println("Data generated, cache size is " + HzService.client().size());
+            gen.generate(HzService.client(), volume);
+        }
+
+        System.out.println("Grid dataset size is " + HzService.client().size());
     }
 
-    private static void waitForService() {
+    public static void waitForService() {
         while(true) {
             if (!HzService.control().check()) {
                 System.err.println("Service is down");
@@ -104,19 +110,37 @@ public class DemoActions {
     public static void info() {
         System.out.println("Environment information ...\n");
 
-        System.out.println("HzNode1 - " + (HzNode1.control().check() ? "live" : "down"));
-        System.out.println("HzNode2 - " + (HzNode2.control().check() ? "live" : "down"));
-        System.out.println("HzNode3 - " + (HzNode3.control().check() ? "live" : "down"));
-        System.out.println("HzService - " + (HzService.control().check() ? "live" : "down"));
+        if (ContainerHelper.isDockerAvailable()) {
+            System.out.println("HzNode1 - " + (HzNode1.control().check() ? "live" : "down") + (ContainerHelper.checkRunning("hznode1") ? " in container" : ""));
+            System.out.println("HzNode2 - " + (HzNode2.control().check() ? "live" : "down") + (ContainerHelper.checkRunning("hznode2") ? " in container" : ""));
+            System.out.println("HzNode3 - " + (HzNode3.control().check() ? "live" : "down") + (ContainerHelper.checkRunning("hznode3") ? " in container" : ""));
+            System.out.println("HzService - " + (HzService.control().check() ? "live" : "down") + (ContainerHelper.checkRunning("hzservice") ? " in container" : ""));
+
+        } else {
+            System.out.println("HzNode1 - " + (HzNode1.control().check() ? "live" : "down"));
+            System.out.println("HzNode2 - " + (HzNode2.control().check() ? "live" : "down"));
+            System.out.println("HzNode3 - " + (HzNode3.control().check() ? "live" : "down"));
+            System.out.println("HzService - " + (HzService.control().check() ? "live" : "down"));
+        }
         System.out.println("LoadGen - " + (HzLoadGen.control().check() ? "live" : "down"));
 
         System.out.println();
     }
 
     public static void stop() {
-        System.out.println("Stopping demo envirnment");
+        System.out.println("Stopping demo environment");
         stopCluster();
         HzLoadGen.control().kill();
+    }
+
+    public static void stopDocker() {
+        if (ContainerHelper.isDockerAvailable()) {
+            ContainerHelper.removeContainer("hznode1");
+            ContainerHelper.removeContainer("hznode2");
+            ContainerHelper.removeContainer("hznode3");
+            ContainerHelper.removeContainer("hzservice");
+            ContainerHelper.removeNetwork("hzbench");
+        }
     }
 
     private static void stopCluster() {

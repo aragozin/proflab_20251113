@@ -7,6 +7,7 @@ public class DemoStop {
     @Test
     public void action() {
         DemoActions.stop();
+        DemoActions.stopDocker();
     }
 
 }

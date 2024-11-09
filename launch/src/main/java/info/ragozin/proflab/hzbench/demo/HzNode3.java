@@ -10,31 +10,31 @@ import info.ragozin.labconsole.agent.DemoInitializer;
 import info.ragozin.labconsole.agent.GenericStarter;
 import info.ragozin.perflab.hazelagg.Node;
 
-public class HzNode2 extends GenericStarter {
+public class HzNode3 extends GenericStarter implements ProcNode {
 
     @SuppressWarnings("unused")
     private Node node;
 
-    public static HzNode2 control() {
-        return new HzNode2(true);
+    public static HzNode3 control() {
+        return new HzNode3(true);
     }
 
     @Override
-    protected String getProcessTag() {
-        return "hznode2";
+    public String getProcessTag() {
+        return "hznode3";
     }
 
-    protected HzNode2() {
+    protected HzNode3() {
         super();
     }
 
-    protected HzNode2(boolean control) {
+    protected HzNode3(boolean control) {
         super(control);
     }
 
 
     public static void main(String... args) throws FileNotFoundException {
-        new HzNode2().run();
+        new HzNode3().run();
     }
 
     @Override

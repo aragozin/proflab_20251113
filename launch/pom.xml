@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <parent>
+        <groupId>info.ragozin.proflab</groupId>
+        <artifactId>hzbench-demo</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>hzbench-demo-launch</artifactId>
+    <packaging>jar</packaging>
+    <name>${project.groupId}::${project.artifactId}</name>
+
+    <description>HZBench - Process launcher</description>
+
+    <dependencies>
+
+        <dependency>
+            <groupId>info.ragozin.proflab</groupId>
+            <artifactId>proflab-utils</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>hzbench-demo-gridapp</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>com.google.cloud.tools</groupId>
+                <artifactId>jib-maven-plugin</artifactId>
+                <version>3.4.6</version>
+                <configuration>
+                    <container>
+                        <mainClass>info.ragozin.proflab.hzbench.demo.HzAutoNode</mainClass>
+                        <jvmFlags>
+                            <jvmFlag>-Djava.rmi.server.hostname=127.2.2.2</jvmFlag> <!-- Mess with RMI IP -->
+                            <jvmFlag>-Djava.net.preferIPv4Stack=true</jvmFlag>
+                            <jvmFlag>--add-opens</jvmFlag>
+                            <jvmFlag>java.base/java.lang=ALL-UNNAMED</jvmFlag>
+                            <jvmFlag>--add-opens</jvmFlag>
+                            <jvmFlag>java.base/java.util=ALL-UNNAMED</jvmFlag>
+                            <jvmFlag>--add-opens</jvmFlag>
+                            <jvmFlag>java.base/jdk.internal.ref=ALL-UNNAMED</jvmFlag>
+                            <jvmFlag>--add-opens</jvmFlag>
+                            <jvmFlag>java.naming/com.sun.jndi.ldap=ALL-UNNAMED</jvmFlag>
+                        </jvmFlags>
+                        <!-- <expandClasspathDependencies>true</expandClasspathDependencies> -->
+                        <workingDirectory>/app/</workingDirectory>
+                    </container>
+                    <extraDirectories>
+                        <paths>
+                            <path>
+                                <from>../</from>
+                                <into>/app/</into>
+                                <includes>demo.properties</includes>
+                            </path>
+                            <path>
+                                <from>../gridapp/docker</from>
+                                <into>/app/gridapp/</into>
+                                <includes>*.xml</includes>
+                            </path>
+                        </paths>
+                    </extraDirectories>
+                    <from>
+                        <image>eclipse-temurin:17</image>
+                    </from>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>build_image</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.google.cloud.tools</groupId>
+                        <artifactId>jib-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>build-tar</id>
+                                <phase>compile</phase>
+                                <goals>
+                                    <goal>dockerBuild</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
+</project>

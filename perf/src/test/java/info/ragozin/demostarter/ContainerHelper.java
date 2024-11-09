@@ -1,0 +1,287 @@
+package info.ragozin.demostarter;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+import info.ragozin.labconsole.agent.DemoInitializer;
+import org.apache.commons.io.IOUtils;
+
+public class ContainerHelper {
+
+    private static String dockerCmd = "docker";
+    private static Boolean dockerPresent = null;
+
+    public static boolean isDockerAvailable() {
+        if (dockerPresent != null) {
+            return dockerPresent;
+        }
+
+        try {
+            ProcessBuilder pb = new ProcessBuilder(dockerCmd, "--version");
+            pb.directory(new File(DemoInitializer.getDemoHome()));
+            Process p = pb.start();
+            if (!p.waitFor(10, TimeUnit.SECONDS)) {
+                p.destroy();
+                System.out.println("Timeout running docker command");
+                dockerPresent = Boolean.FALSE;
+                return false;
+            }
+
+            int code = p.exitValue();
+            if (code == 0) {
+                String version = IOUtils.toString(p.getInputStream());
+                System.out.println("Docker version: " + version);
+                dockerPresent = Boolean.TRUE;
+            } else {
+                System.out.println("Docker command is not available");
+                dockerPresent = Boolean.FALSE;
+            }
+        } catch (IOException e) {
+            System.out.println("Error running docker command: " + e.toString());
+            dockerPresent = Boolean.FALSE;
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+        return dockerPresent.booleanValue();
+    }
+
+    public static boolean checkRunning(String containerName) {
+        if (!isDockerAvailable()) {
+            return false;
+        }
+        try {
+            ProcessBuilder pb = new ProcessBuilder(dockerCmd, "ps");
+            pb.directory(new File(DemoInitializer.getDemoHome()));
+            Process p = pb.start();
+            if (!p.waitFor(10, TimeUnit.SECONDS) || p.exitValue() != 0) {
+                try {
+                    p.destroy();
+                } catch (Exception e) {
+                    // ignore
+                }
+                throw new RuntimeException("docker ps is not successful");
+            }
+            ;
+            String output = IOUtils.toString(p.getInputStream());
+            String[] lines = output.split("[\\n]");
+            for (String line: lines) {
+                String[] parts = line.split("\\s+");
+                String last = parts.length == 0 ? "" : parts[parts.length - 1];
+                if (containerName.equals(last)) {
+                    return true;
+                }
+            }
+
+            return false;
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static boolean checkNetwork(String networkName) {
+        if (!isDockerAvailable()) {
+            return false;
+        }
+        try {
+            ProcessBuilder pb = new ProcessBuilder(dockerCmd, "network", "ls", "--filter", "name=" + networkName);
+            pb.directory(new File(DemoInitializer.getDemoHome()));
+            Process p = pb.start();
+            if (!p.waitFor(10, TimeUnit.SECONDS) || p.exitValue() != 0) {
+                try {
+                    p.destroy();
+                } catch (Exception e) {
+                    // ignore
+                }
+                throw new RuntimeException("docker ps is not successful");
+            }
+            ;
+            String output = IOUtils.toString(p.getInputStream());
+            String[] lines = output.split("[\\n]");
+            for (String line: lines) {
+                String[] parts = line.split("\\s+");
+                String last = parts.length > 1 ? "" : parts[1];
+                if (networkName.equals(last)) {
+                    return true;
+                }
+            }
+
+            return false;
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static String showCommand(ProcessBuilder pb) {
+        StringBuilder sb = new StringBuilder();
+        for (String cp: pb.command()) {
+            sb.append(escapeCmd(cp)).append(' ');
+        }
+        return sb.toString();
+    }
+
+    private static Object escapeCmd(String cp) {
+        if (cp.indexOf(' ') >= 0) {
+            return "\"" + cp + "\"";
+        } else {
+            return cp;
+        }
+    }
+
+    public static void stopContainer(String containerName) {
+
+        try {
+            ProcessBuilder pb = new ProcessBuilder(dockerCmd, "stop", containerName);
+            pb.directory(new File(DemoInitializer.getDemoHome()));
+            pb.inheritIO();
+            System.out.println("Container command: " + showCommand(pb));
+            pb.start().waitFor(30, TimeUnit.SECONDS);
+        } catch (InterruptedException | IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static void removeContainer(String containerName) {
+
+        try {
+            ProcessBuilder pb = new ProcessBuilder(dockerCmd, "rm", "-f", containerName);
+            pb.directory(new File(DemoInitializer.getDemoHome()));
+            pb.inheritIO();
+            System.out.println("Container command: " + showCommand(pb));
+            pb.start().waitFor(30, TimeUnit.SECONDS);
+        } catch (InterruptedException | IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static DockerNetwork network(String networkName) throws IOException, InterruptedException {
+        DockerNetwork dnet = new DockerNetwork(networkName);
+        if (!checkNetwork(networkName)) {
+            ProcessBuilder pb = new ProcessBuilder(dockerCmd, "network", "create", networkName);
+            pb.directory(new File(DemoInitializer.getDemoHome()));
+            pb.inheritIO();
+            System.out.println("Container command: " + showCommand(pb));
+            pb.start().waitFor(30, TimeUnit.SECONDS);
+        }
+        return dnet;
+    }
+
+    public static void removeNetwork(String network) {
+
+        try {
+            ProcessBuilder pb = new ProcessBuilder(dockerCmd, "network", "rm", network);
+            pb.directory(new File(DemoInitializer.getDemoHome()));
+            pb.inheritIO();
+            System.out.println("Container command: " + showCommand(pb));
+            pb.start().waitFor(30, TimeUnit.SECONDS);
+        } catch (InterruptedException | IOException e) {
+            System.err.println(e.toString());
+        }
+    }
+    public static Builder builder(String name, String image) {
+        Builder bld = new Builder();
+        bld.image = image;
+        bld.cmd.addAll(Arrays.asList(dockerCmd, "run", "-d", "--name", name, "--add-host", "host.docker.internal:host-gateway"));
+        return bld;
+    }
+
+    public static class Builder {
+
+        List<String> cmd = new ArrayList<String>();
+        String image;
+        List<String> javaToolOptions = new ArrayList<>();
+
+        public Builder mount(String src, String dst) {
+            File srcPath = DemoInitializer.file(src);
+            if (!srcPath.isDirectory()) {
+                if (!srcPath.mkdirs()) {
+                    throw new RuntimeException("[" + srcPath.getAbsolutePath() + "] is not a directory");
+                }
+            }
+            cmd.addAll(Arrays.asList("--mount", "type=bind,source=" + srcPath.getAbsolutePath() + ",target=" + dst + ""));
+            return this;
+        }
+
+        public Builder port(int inside, int outside) {
+            cmd.addAll(Arrays.asList("-p", inside + ":" + outside + "/tcp"));
+            return this;
+        }
+
+        public Builder memory(int limitMiB) {
+            cmd.addAll(Arrays.asList("-m", String.valueOf(((long)limitMiB) << 20)));
+            return this;
+        }
+
+        public Builder network(DockerNetwork net) {
+            cmd.addAll(List.of("--network", net.toString()));
+            return this;
+        }
+
+        public Builder env(String var, String value) {
+            cmd.addAll(List.of("-e" + var + "=" + value));
+            return this;
+        }
+
+        public Builder jvmArg(String... args) {
+            javaToolOptions.addAll(Arrays.asList(args));
+            replaceJavaToolOptions();
+            return this;
+        }
+
+        private void replaceJavaToolOptions() {
+            Iterator<String> it = cmd.iterator();
+            while (it.hasNext()) {
+                if (it.next().startsWith("-eJAVA_TOOL_OPTIONS=")) {
+                    it.remove();
+                }
+            }
+            StringBuilder sb = new StringBuilder();
+            sb.append("-eJAVA_TOOL_OPTIONS=\"");
+            for (String arg: javaToolOptions) {
+                sb.append(arg);
+                sb.append(' ');
+            }
+            sb.setLength(sb.length() - 1);
+            sb.append("\"");
+            cmd.add(sb.toString());
+        }
+
+        public boolean run() {
+            try {
+                List<String> cmd = new ArrayList<>(this.cmd);
+                cmd.add(image);
+                ProcessBuilder pb = new ProcessBuilder(cmd);
+                pb.directory(new File(DemoInitializer.getDemoHome()));
+                pb.inheritIO();
+                System.out.println("Container command: " + showCommand(pb));
+                Process proc = pb.start();
+                if (!proc.waitFor(30, TimeUnit.SECONDS)) {
+                    proc.destroy();
+                    System.out.println("Command timeout");
+                    return false;
+                }
+                return proc.exitValue() == 0;
+            } catch (InterruptedException | IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    public static class DockerNetwork {
+        private final String networkName;
+
+        public DockerNetwork(String networkName) {
+            this.networkName = networkName;
+        }
+
+        @Override
+        public String toString() {
+            return networkName;
+        }
+    }
+}
