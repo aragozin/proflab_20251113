@@ -68,6 +68,7 @@ public class DockerDemoStart {
 
             ContainerHelper.Builder builder = ContainerHelper.builder(control.getProcessTag(), "hzbench-demo-launch:1.0.0-SNAPSHOT")
                     .memory(300)
+                    .cpu(0.7)
                     .network(hznet)
                     .env("HZNODE", control.getClass().getSimpleName())
                     .mount("pids", "/app/pids")

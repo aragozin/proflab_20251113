@@ -212,6 +212,11 @@ public class ContainerHelper {
             return this;
         }
 
+        public Builder cpu(double limitCores) {
+            cmd.add(String.format("--cpus=%.2f", limitCores));
+            return this;
+        }
+
         public Builder memory(int limitMiB) {
             cmd.addAll(Arrays.asList("-m", String.valueOf(((long)limitMiB) << 20)));
             return this;

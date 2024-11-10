@@ -285,6 +285,27 @@
         </pluginManagement>
       </build>
     </profile>
+    <profile>
+      <id>docker_run_n_load</id>
+      <build>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-surefire-plugin</artifactId>
+              <configuration>
+                <excludes>
+                  <exclude>**Test.java</exclude>
+                </excludes>
+                <includes>
+                  <include>**/DockerDemoStartAndLoad.java</include>
+                </includes>
+              </configuration>
+            </plugin>
+           </plugins>
+        </pluginManagement>
+      </build>
+    </profile>
 
   </profiles>
 </project>
