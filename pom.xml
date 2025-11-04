@@ -57,9 +57,13 @@
                   </fileset>
                   <fileset>
                     <directory>${project.basedir}/pids</directory>
+                  </fileset>
+                  <fileset>
                     <directory>${project.basedir}/var</directory>
+                    <followSymlinks>false</followSymlinks>
                   </fileset>
                 </filesets>
+                <force>true</force>
               </configuration>
             </plugin>
         </plugins>
